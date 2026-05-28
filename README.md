@@ -1,4 +1,4 @@
-# online-purchase-intention
+# Online Purchase Intention Prediction
 
 This project explores whether online shopping sessions can be classified as purchase or non-purchase sessions using supervised machine learning.
 
