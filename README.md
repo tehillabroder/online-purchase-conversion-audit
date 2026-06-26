@@ -19,25 +19,22 @@ This notebook requires the package versions listed in `requirements.txt`. In par
 To set up the environment, run:
 
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 The notebook includes a version check at the start and will stop with a clear error message if the required scikit-learn version is not installed.
 
-The notebook expects the dataset file to be named:
+If running the notebook through the Codio/Jupyter notebook interface, register the same Python environment as a Jupyter kernel:
 
-```text
-online_shoppers_intention.csv
+```bash
+python3 -m pip install ipykernel
+python3 -m ipykernel install --user --name aml-online-shoppers --display-name "Python (AML online shoppers)"
 ```
 
-Place the file in one of these locations:
+Then open the notebook and select:
 
 ```text
-online_shoppers_intention.csv
-data/online_shoppers_intention.csv
-../data/online_shoppers_intention.csv
+Kernel → Change Kernel → Python (AML online shoppers)
 ```
 
-The notebook checks these paths automatically and loads the first matching file. If the dataset is not found, it stops with a clear `FileNotFoundError` showing which locations were checked.
-
-For a full reproduction, run the notebook from top to bottom. The notebook saves fitted models and cached result tables in the `outputs/` folder so the later evaluation sections can be rerun without repeating every tuning cell.
+This ensures the notebook uses the same Python environment where `requirements.txt` was installed.
