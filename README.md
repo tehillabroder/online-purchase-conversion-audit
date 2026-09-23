@@ -1,91 +1,115 @@
 # Predicting and Auditing Online Purchase Conversion
 
-Applied machine learning analysis of the UCI Online Shoppers Purchasing Intention dataset, using completed session records to distinguish purchase from non-purchase sessions.
+This project analyses completed online shopping sessions from the UCI Online Shoppers Purchasing Intention dataset to classify purchase and non-purchase sessions and examine the signals associated with conversion.
 
-The focus is not simply on maximising a single score: the project examines class imbalance, model comparison, feature engineering, precision–recall trade-offs and the limits of interpreting an outcome-adjacent feature.
+The analysis covers imbalanced tabular classification, pipeline-based preprocessing, model comparison, hyperparameter tuning, feature engineering, threshold sensitivity and model interpretation using scikit-learn.
 
 ## What I investigated
 
-The source dataset contains 12,330 completed browsing sessions with `Revenue` as the binary purchase target. The notebook removes 125 exact duplicate non-purchase rows before modelling, leaving 12,205 observations, of which approximately 15.6% are purchases.
+The source dataset contains 12,330 completed shopping sessions. After removing 125 exact duplicate rows, the modelling dataset contains 12,205 sessions.
 
-This imbalance makes accuracy alone a poor selection criterion. The analysis therefore focuses primarily on purchase-class precision, recall and F1.
+`Revenue` is the binary target and approximately 15.6 per cent of sessions result in a purchase. This class imbalance makes accuracy alone a weak measure of model quality, so evaluation gives greater weight to precision, recall and F1 for the purchase class.
 
-The project is deliberately framed as a **post-session conversion audit**, rather than a real-time intervention model. This distinction matters because the strongest feature, `PageValues`, is available in the completed session record but is closely related to the purchase outcome itself.
+The project uses completed session records as a post-session conversion audit. This framing is important because the dataset includes `PageValues`, which is highly informative but closely connected to the eventual purchase outcome.
 
 ## Approach
 
-* Preprocessing contained within scikit-learn `Pipeline` and `ColumnTransformer` objects
-* Standardisation of numerical features and one-hot encoding of categorical features
-* Initial comparison of eight classification algorithms
-* Hyperparameter tuning with `RandomizedSearchCV` and stratified five-fold cross-validation
-* F1-based tuning to balance precision and recall for the minority purchase class
-* Comparison of original and engineered feature sets
-* Repeated stratified cross-validation as a stability check
-* Operating-threshold sensitivity using out-of-fold training predictions
-* Logistic Regression coefficients and permutation importance for interpretation
+The modelling workflow includes
 
-Hyperparameters are selected from training-set cross-validation rather than from the test results. The held-out split is used as a comparative evaluation across the candidate model designs.
+* preprocessing inside scikit-learn pipelines
+* standardisation of numerical features where appropriate
+* one-hot encoding of categorical features
+* comparison of eight baseline classifiers
+* hyperparameter tuning with `RandomizedSearchCV`
+* F1-based model selection for the minority purchase class
+* class weighting where supported
+* feature engineering based on browsing depth and product activity
+* repeated stratified cross-validation for stability checks
+* operating-threshold sensitivity analysis
+* Logistic Regression coefficients for signed interpretation
+* permutation importance for the leading ensemble models
+
+Hyperparameters are selected using cross-validation on the training data. The held-out test split is then used to compare fitted model behaviour on unseen sessions.
 
 ## Results
 
-At the default classification threshold, the two final ensemble models show a useful operating trade-off:
+The strongest final candidates were Gradient Boosting and Random Forest using the original feature set.
 
-| Model                   | Precision | Recall |    F1 |
-| ----------------------- | --------: | -----: | ----: |
-| Tuned Gradient Boosting |     0.715 |  0.644 | 0.678 |
-| Tuned Random Forest     |     0.668 |  0.696 | 0.682 |
+| Model                   | Precision | Recall | F1    |
+| ----------------------- | --------- | ------ | ----- |
+| Tuned Gradient Boosting | 0.715     | 0.644  | 0.678 |
+| Tuned Random Forest     | 0.668     | 0.696  | 0.682 |
 
-**Gradient Boosting** is retained as the main focused audit model. It produces more precise purchase flags and fewer false positives: 98 on the held-out test set, compared with 132 for Random Forest.
+Tuned Gradient Boosting is the main audit model. At the default threshold it produces 98 false positives and a review list of 344 sessions. Its repeated cross-validation train to validation F1 gap is 0.071.
 
-**Random Forest** is retained as the recall-focused alternative. It identifies 266 of the 382 purchase sessions in the test set, compared with 246 for Gradient Boosting, but produces a larger review list and shows a substantially larger train–validation gap in the repeated-CV stability check.
+Tuned Random Forest is the recall-oriented alternative. It identifies 266 of the 382 purchase sessions in the test set, compared with 246 for Gradient Boosting. This comes with 132 false positives, a review list of 398 sessions and a larger train to validation F1 gap of 0.240.
 
-The marginal difference in F1 is therefore less informative than the operating trade-off between the two models.
+The small difference in F1 therefore sits alongside a meaningful operating trade-off. Gradient Boosting gives a more selective review list with higher precision, while Random Forest captures more purchase sessions.
 
-Feature engineering was also tested rather than assumed to help. The engineered models did not materially improve on the strongest original-feature models, so the final comparison retains the original feature set.
+A separate threshold analysis for Gradient Boosting selected a threshold of 0.35 using out-of-fold training predictions. On the test set this increased recall from 0.644 to 0.723 and F1 from 0.678 to 0.685, with precision falling from 0.715 to 0.651.
 
-## The `PageValues` boundary
+Feature engineering was also tested across the leading model families. The engineered features carried useful signal but did not improve the strongest original-feature models, so the final models retain the original feature set.
 
-`PageValues` is by far the dominant feature in this dataset, but it is also **outcome-adjacent**. It should not be interpreted as a clean pre-purchase behavioural predictor.
+## The PageValues boundary
 
-That is acceptable for the completed-session audit used here, where the full finished session record is available. It would not be an appropriate basis for claiming a genuine real-time purchase-intention model.
+`PageValues` is the dominant feature in this dataset and is closely connected to the purchase outcome.
 
-The dependence is substantial: removing `PageValues` from an untuned Gradient Boosting diagnostic reduced mean cross-validated F1 from **0.657 to 0.138**, while recall fell from **0.598 to 0.079**.
+Its use fits the completed-session audit setting because it is available in the finished session record. Its interpretation belongs to post-session analysis. A pre-purchase behavioural model would require a feature set built only from information available before conversion.
 
-For that reason, the interpretation explicitly separates `PageValues` from the secondary signals around it. These include `Month`, `ExitRates`, `BounceRates` and product-browsing depth.
+The dependence is substantial. Removing `PageValues` from an untuned Gradient Boosting diagnostic reduced mean cross-validated F1 from 0.657 to 0.138 and recall from 0.598 to 0.079.
+
+The interpretation therefore also examines the secondary signals around `PageValues`. These include
+
+* `Month`
+* `ExitRates`
+* `BounceRates`
+* `ProductRelated`
+* `ProductRelated_Duration`
+
+These features give a broader view of timing, exit behaviour and product-browsing depth across completed sessions.
 
 ## Repository contents
 
-* `aml_online_shoppers.ipynb` — full analysis, modelling and interpretation
-* `baseline_results_df.csv` — baseline classifier results
-* `tuned_results_df.csv` — tuned original-feature results
-* `engineered_tuned_results_df.csv` — tuned engineered-feature results
-* saved `joblib` model/search artefacts
-* `requirements.txt` — Python dependencies
+`aml_online_shoppers.ipynb` contains the full analysis, modelling workflow and interpretation.
 
-The notebook is intentionally the full analysis artefact; the README summarises the modelling decisions and main results.
+The repository also includes
+
+* baseline model results
+* tuned original-feature results
+* tuned engineered-feature results
+* saved joblib model artefacts
+* `requirements.txt`
+
+The notebook remains the full analysis artefact, while this README summarises the main modelling decisions and results.
 
 ## Running the notebook
 
-Install the project dependencies:
+Install the required packages
 
 ```bash
 python3 -m pip install -r requirements.txt
 ```
 
-Then open:
+The notebook requires `scikit-learn>=1.8` because the Logistic Regression tuning uses the current `l1_ratio` regularisation API.
+
+Then open
 
 ```text
 aml_online_shoppers.ipynb
 ```
 
-in Jupyter.
+in Jupyter and run the notebook from the top.
 
-The notebook looks for `online_shoppers_intention.csv` in the repository root, a `data/` directory, or the parent `data/` directory.
+The notebook searches for `online_shoppers_intention.csv` in the repository root, a `data` directory or the parent `data` directory.
 
 ## Data
 
-**Online Shoppers Purchasing Intention Dataset**
-C. Sakar and Y. Kastro, UCI Machine Learning Repository, 2018.
-DOI: [10.24432/C5F88Q](https://doi.org/10.24432/C5F88Q)
+The project uses the UCI Machine Learning Repository [Online Shoppers Purchasing Intention Dataset](//doi.org/10.24432/C5F88Q).
 
-The dataset is distributed under the [Creative Commons Attribution 4.0 International licence](https://creativecommons.org/licenses/by/4.0/).
+C. O. Sakar and Y. Kastro
+Online Shoppers Purchasing Intention Dataset
+UCI Machine Learning Repository
+2018
+DOI `10.24432/C5F88Q`
+
+The dataset is distributed under the [Creative Commons Attribution 4.0 International licence](//creativecommons.org/licenses/by/4.0/).
